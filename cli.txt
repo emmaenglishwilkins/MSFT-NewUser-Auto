@@ -1,0 +1,15 @@
+authenticate to azure 
+Connect-AzAccount -UseDeviceAuthentication
+
+Install Microsoft Graph PowerShell module
+Install-Module -Name Microsoft.Graph -Scope CurrentUser
+
+Install AzureAD module (if not already installed or in portal)
+Install-Module -Name AzureAD
+
+Connect to Microsoft Graph
+Connect-MgGraph -Scopes "User.ReadWrite.All", "Directory.ReadWrite.All"
+
+Get Sku list
+# Get subscribed SKUs
+Get-MgSubscribedSku | Select SkuId, SkuPartNumber, ConsumedUnits
