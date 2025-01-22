@@ -14,6 +14,7 @@ foreach ($user in $users) {
                 ForceChangePasswordNextLogin = $false
             })
 
+        # this part didnt work lol revised scripts in powershell-scripts folder (add location and then license)
         if ($newUser) {
             Write-Host "User created: $($user.UserPrincipalName). Assigning license..."
 
