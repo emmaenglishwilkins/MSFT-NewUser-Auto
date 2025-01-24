@@ -13,3 +13,4 @@ Connect-MgGraph -Scopes "User.ReadWrite.All", "Directory.ReadWrite.All"
 Get Sku list
 # Get subscribed SKUs
 Get-MgSubscribedSku | Select SkuId, SkuPartNumber, ConsumedUnits
+

@@ -269,13 +269,10 @@ if ($SlackParams.Text -like 'member*') {
 
 ### add entra id member 
 if ($SlackParams.Text -like 'new_login*') {
-    
     # Add admin account for authentication
     $null = Add-AzAccount -Credential (Get-AutomationPSCredential -Name "AzureAdmin")
     
     try {
-        $displayname = $SlackParams.Text -replace 'new_login\s*', ''
-        
         # Connect to Microsoft Graph
         try {
             Connect-MgGraph -Scopes 'User.ReadWrite.All'
@@ -285,29 +282,84 @@ if ($SlackParams.Text -like 'new_login*') {
             return
         }
 
-        # Assign PasswordProfile
-        $GeneratedPass = "word9129!"
-        $PasswordProfile = New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile
-        $PasswordProfile.Password = $GeneratedPass
-        $PasswordProfile.ForceChangePasswordNextLogin = $false
-        $PasswordProfile.ForceChangePasswordNextSigninWithMfa = $false
+        $displayname = $SlackParams.Text -replace 'new_login\s*', ''
+        $userPrincipalName = ($displayName.ToLower() -replace ', ', '' -replace ' ', '') + '@penguincoding.org'
+        # Function to check if a user exists
+        function Get-UserExistence {
+            param (
+                [string]$upn
+            )
+            $user = Get-MgUser -Filter "userPrincipalName eq '$upn'" -ErrorAction SilentlyContinue
+            return $user -ne $null
+        }
 
-        $mailnickname = $displayname.ToLower() -replace '\s', ''
-        $UserPrincipalName = "$mailnickname@penguincoding.org"
+        # Function to generate a unique username if it already exists
+        function Get-UniqueUsername {
+            param (
+                [string]$baseUpn
+            )
+            $counter = 1
+            $newUpn = $baseUpn
+
+            while (Get-UserExistence -upn $newUpn) {
+                $newUpn = ($displayName.ToLower() -replace ', ', '' -replace ' ', '') + $counter + '@penguincoding.org'
+                $counter++
+            }
+            return $newUpn
+        }
+
+        # Check if the user already exists and generate a unique username if needed
+        if (Get-UserExistence -upn $userPrincipalName) {
+            $userPrincipalName = Get-UniqueUsername -baseUpn $userPrincipalName
+        }
+
+        Send-SlackMessage -Message ("Finalized UPN: {0}" -f $userPrincipalName)
+
+        # Generate a random password function
+        function Generate-Password {
+            $wordBank = @(
+                'ball', 'bear', 'bike', 'bird', 'book', 'cake', 'call', 'card', 'care', 'cats',
+                'cook', 'cool', 'desk', 'door', 'draw', 'duck', 'farm', 'fish', 'flag', 'flow',
+                'food', 'game', 'gift', 'girl', 'gold', 'good', 'hand', 'help', 'hero', 'home',
+                'hope', 'jump', 'kind', 'king', 'kite', 'lamp', 'leaf', 'life', 'lion', 'love',
+                'moon', 'nice', 'note', 'park', 'play', 'rain', 'read', 'rock', 'room', 'rose',
+                'safe', 'sand', 'seed', 'ship', 'sing', 'snow', 'soil', 'song', 'star', 'stay',
+                'sun', 'swim', 'tall', 'team', 'time', 'tree', 'true', 'walk', 'wave', 'wind',
+                'wish', 'wood', 'work', 'year', 'zero', 'zoom', 'blue', 'pink', 'gold', 'mint'
+            )
+            $randomWord = Get-Random -InputObject $wordBank
+            $randomNumber = Get-Random -Minimum 1000 -Maximum 9999
+            return "$randomWord$randomNumber!"
+        }
+
+        # Generate the password
+        $GeneratedPass = Generate-Password
+
+        Send-SlackMessage -Message ("Attempting adding account {0} with username {1} and password {2}" -f $displayname, $UserPrincipalName, $GeneratedPass)
 
         $userParams = @{
             DisplayName = $displayname
-            PasswordProfile = $PasswordProfile
+            PasswordProfile = @{
+                Password = $GeneratedPass
+                ForceChangePasswordNextSignIn = $false
+                ForceChangePasswordNextSigninWithMfa = $false
+            }
             UserPrincipalName = $UserPrincipalName
             AccountEnabled = $true
-            MailNickName = $mailnickname
+            MailNickName = ($displayname -replace ' ', '')
         }
 
-        Send-SlackMessage -Message ("Attempting adding account {0} with username {1} and password {2}" -f $displayname, $UserPrincipalName, $GeneratedPass)
-        # create the user 
         New-MgUser @userParams
-        Send-SlackMessage -Message ("{0} added account username {1} and password {2}" -f $displayname, $UserPrincipalName, $GeneratedPass)
-       
+        Send-SlackMessage -Message ("Account successfully added attempting license assignment")
+
+        # Assign the license
+        $user = Get-MgUser -UserId $userPrincipalName
+        Update-MgUser -UserId $user.Id -UsageLocation 'US'
+
+        $id = '6fd2c87f-b296-42f0-b197-1e91e994b900' # this is not the sku id i dont think but its a place holder for right now 
+        $license = @{SkuId = $id}
+        Set-MgUserLicense -UserId $user.Id -AddLicenses @($license) -RemoveLicenses @()
+        Send-SlackMessage -Message ("License successfully assigned to {0}" -f $displayname)
     }
     catch { # error handling 
         Send-SlackMessage -Message ('Error occurred while adding {0} account' -f $displayname, $PSItem.Exception.Message)
