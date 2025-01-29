@@ -1,3 +1,10 @@
+# Define the License SKU ID (same for all users)
+# $skuId = "94763226-9b3c-4e75-a931-5c89701abe66"
+
+# DisplayName	UserPrincipalName	PasswordProfile_password	LicenseSkuId
+
+$users = Import-Csv -Path /home/emma/bulk_create.csv
+Connect-AzureAD
 
 # Loop through each user in the CSV
 foreach ($user in $users) {
@@ -10,27 +17,30 @@ foreach ($user in $users) {
             -MailNickName ($user.UserPrincipalName -split "@")[0] `
             -AccountEnabled $true `
             -PasswordProfile (New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile -Property @{
-                Password = $user.Password # had to change this in the other one bc my column was named differently
+                Password = $user.PasswordProfile_password
                 ForceChangePasswordNextLogin = $false
             })
 
-        # this part didnt work lol revised scripts in powershell-scripts folder (add location and then license)
         if ($newUser) {
             Write-Host "User created: $($user.UserPrincipalName). Assigning license..."
 
-            # Get the license SKU ID from the friendly name
-            $skuId = (Get-AzureADSubscribedSku | Where-Object { $_.SkuPartNumber -eq $user.LicenseSkuId }).SkuId
+            # Update Usage Location (required before assigning a license)
+            Write-Host "Updating usage location for: $($user.UserPrincipalName)"
+            Update-MgUser -UserId $newUser.ObjectId -UsageLocation "US"
+            Write-Host "Usage location updated for: $($user.UserPrincipalName)"
 
-            if ($skuId) {
-                # Assign license to the user
-                Set-AzureADUserLicense -ObjectId $newUser.ObjectId -AddLicenses @(@{SkuId = $skuId }) -RemoveLicenses @()
-                Write-Host "License assigned to: $($user.UserPrincipalName)"
-            } else {
-                Write-Host "Error: License SKU ID not found for $($user.UserPrincipalName)"
-            }
+            # Assign the predefined license
+            Write-Host "Assigning license to: $($user.UserPrincipalName)"
+            $license = @{SkuId = $user.SkuId}
+            Set-MgUserLicense -UserId $newUser.ObjectId -AddLicenses @($license) -RemoveLicenses @()
+            Write-Host "License assigned to: $($user.UserPrincipalName)"
+
+        } else {
+            Write-Host "Error: Failed to create user $($user.UserPrincipalName)"
         }
     }
     catch {
         Write-Host "Error processing user: $($user.UserPrincipalName) - $_"
     }
 }
+

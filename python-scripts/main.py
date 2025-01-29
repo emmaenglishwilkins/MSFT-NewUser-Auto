@@ -24,7 +24,7 @@ def generate_password():
     ]
     word = random.choice(word_bank)
     num = random.randint(1000, 9999)
-    pwd = f'{word}{num}!'
+    pwd = word + str(num) + "!"
     return pwd
 
 def normalize_name(name):
@@ -39,10 +39,11 @@ def process_data(data):
     pop_df = pd.DataFrame(columns=['DisplayName', 'UserPrincipalName', 'PasswordProfile_password', 'LicenseSkuId'])
 
     for index, row in data.iterrows():
-        display_name = normalize_name(row['Name']) 
+        display_name = normalize_name(row['DisplayName']) 
         user_principal_name = display_name.lower().replace(', ', '').replace(' ', '') + '@penguincoding.org'
         password = generate_password()
-        license_id = licenseID(row['License']) 
+        license_id = row['SkuId']
+        # license_id = licenseID(row['SkuId']) 
 
         new_row = pd.DataFrame({
             'DisplayName': [display_name],
