@@ -42,7 +42,7 @@ def process_data(data):
         display_name = normalize_name(row['DisplayName']) 
         user_principal_name = display_name.lower().replace(', ', '').replace(' ', '') + '@penguincoding.org'
         password = generate_password()
-        license_id = row['SkuId']
+        license_id = row['LicenseSkuId']
         # license_id = licenseID(row['SkuId']) 
 
         new_row = pd.DataFrame({

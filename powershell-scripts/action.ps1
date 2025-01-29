@@ -25,15 +25,11 @@ foreach ($user in $users) {
             Write-Host "User created: $($user.UserPrincipalName). Assigning license..."
 
             # Update Usage Location (required before assigning a license)
-            Write-Host "Updating usage location for: $($user.UserPrincipalName)"
-            Update-MgUser -UserId $newUser.ObjectId -UsageLocation "US"
-            Write-Host "Usage location updated for: $($user.UserPrincipalName)"
-
-            # Assign the predefined license
             Write-Host "Assigning license to: $($user.UserPrincipalName)"
-            $license = @{SkuId = $user.SkuId}
-            Set-MgUserLicense -UserId $newUser.ObjectId -AddLicenses @($license) -RemoveLicenses @()
-            Write-Host "License assigned to: $($user.UserPrincipalName)"
+            $license = @{SkuId = $user.LicenseSkuId}  
+            Write-Host "License: $($license.LicenseSkuId)"
+            Update-MgUser -UserId $newUser.Id -UsageLocation "US"            
+            Set-MgUserLicense -UserId $user.Id -AddLicenses @($license) -RemoveLicenses @() 
 
         } else {
             Write-Host "Error: Failed to create user $($user.UserPrincipalName)"

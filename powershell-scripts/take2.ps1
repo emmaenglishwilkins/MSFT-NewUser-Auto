@@ -44,7 +44,6 @@ foreach ($user in $users) {
 }
 
 
-
 # just assign single license
 $user = Get-MgUser -UserId $user.UserPrincipalName    
 $license = @{SkuId = $user}  
