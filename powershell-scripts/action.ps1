@@ -2,9 +2,8 @@
 # $skuId = "94763226-9b3c-4e75-a931-5c89701abe66"
 
 # DisplayName	UserPrincipalName	PasswordProfile_password	LicenseSkuId
-
-$users = Import-Csv -Path /home/emma/bulk_create.csv
 Connect-AzureAD
+$users = Import-Csv -Path /home/emma/bulk_create.csv
 
 # Loop through each user in the CSV
 foreach ($user in $users) {

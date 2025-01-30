@@ -275,7 +275,8 @@ if ($SlackParams.Text -like 'new_login*') {
     try {
         # Connect to Microsoft Graph
         try {
-            Connect-MgGraph -Scopes 'User.ReadWrite.All'
+            Connect-MgGraph -Scopes "User.ReadWrite.All", "Directory.ReadWrite.All"
+            Connect-AzureAD
         }
         catch {
             Send-SlackMessage -Message "Error connecting to Entra: $($_.Exception.Message)"
@@ -349,19 +350,20 @@ if ($SlackParams.Text -like 'new_login*') {
             MailNickName = ($displayname -replace ' ', '')
         }
 
+        Connect-MgGraph # maybe redundant
+
         New-MgUser @userParams
         Send-SlackMessage -Message ("Account successfully added attempting license assignment")
 
-        # Assign the license
-        $user = Get-MgUser -UserId $userPrincipalName
-        Update-MgUser -UserId $user.Id -UsageLocation 'US'
-
+        # Update Usage Location (required before assigning a license)
         $id = '6fd2c87f-b296-42f0-b197-1e91e994b900' # this is not the sku id i dont think but its a place holder for right now 
         $license = @{SkuId = $id}
-        Set-MgUserLicense -UserId $user.Id -AddLicenses @($license) -RemoveLicenses @()
-        Send-SlackMessage -Message ("License successfully assigned to {0}" -f $displayname)
+        Update-MgUser -UserId $newUser.Id -UsageLocation "US"            
+        Set-MgUserLicense -UserId $user.Id -AddLicenses @($license) -RemoveLicenses @() 
     }
     catch { # error handling 
         Send-SlackMessage -Message ('Error occurred while adding {0} account' -f $displayname, $PSItem.Exception.Message)
     }
 }
+
+# New-MgUser_CreateExpanded: Line | 352 | New-MgUser @userParams | ~~~~~~~~~~~~~~~~~~~~~~ | Authentication needed. Please call Connect-MgGraph.
